@@ -1,14 +1,21 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { NovelForm } from "@/components/NovelForm";
 import { SubscriptionPricing } from "@/components/SubscriptionPricing";
 import { Sparkles } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
+import { getGuestCredits } from "@/lib/storage";
 
 export default function Home() {
     const { user, profile } = useAuth();
     const router = useRouter();
+    const [guestCredits, setGuestCredits] = useState(3);
+
+    useEffect(() => {
+        setGuestCredits(getGuestCredits());
+    }, []);
 
     const handleSubscribe = async (priceId: string) => {
         if (!user) {
@@ -57,7 +64,9 @@ export default function Home() {
                         <p className="text-sm text-primary">
                             현재 플랜: {profile.subscription_tier} · 남은 크레딧 {profile.credits}
                         </p>
-                    ) : null}
+                    ) : (
+                        <p className="text-sm text-primary">비회원도 무료 생성 {guestCredits}회까지 체험할 수 있습니다.</p>
+                    )}
                 </div>
 
                 <NovelForm />

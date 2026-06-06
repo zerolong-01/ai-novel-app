@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect, Suspense, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { NovelOutput } from "@/components/NovelOutput";
 import { NovelSidebar } from "@/components/NovelSidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, FastForward } from "lucide-react";
-import { StorySegment, NovelRequest } from "@/lib/types";
-import { getNovel, saveNovel } from "@/lib/storage";
+import { FastForward, Send } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { NovelRequest, StorySegment } from "@/lib/types";
+import { decrementGuestCredits, getGuestCredits, getNovel, saveNovel } from "@/lib/storage";
 
 const AUTO_START_PROMPT = "이야기를 시작해 줘. 첫 장면부터 몰입감 있게 써 줘.";
 const NEXT_CHAPTER_PROMPT = "다음 장면으로 이어서 전개해 줘. 인물의 감정과 갈등이 자연스럽게 이어지게 해 줘.";
@@ -24,6 +24,7 @@ function GenerateContent() {
     const [input, setInput] = useState("");
     const [isGenerating, setIsGenerating] = useState(false);
     const [context, setContext] = useState<NovelRequest | null>(null);
+    const [guestCredits, setGuestCredits] = useState(3);
     const hasStartedRef = useRef(false);
     const generateRef = useRef<(promptText: string, currentContext: NovelRequest) => Promise<void>>(async () => {});
 
@@ -34,13 +35,15 @@ function GenerateContent() {
             return;
         }
 
-        if (!user) {
-            window.alert("이어서 생성하려면 로그인해 주세요.");
-            router.push("/login");
+        const currentGuestCredits = getGuestCredits();
+
+        if (!user && currentGuestCredits <= 0) {
+            window.alert("비회원 무료 생성 3회를 모두 사용했습니다. 회원가입 후 계속 작성해 보세요.");
+            router.push("/signup");
             return;
         }
 
-        if (profile?.subscription_tier === "FREE" && profile.credits <= 0) {
+        if (user && profile?.subscription_tier === "FREE" && profile.credits <= 0) {
             window.alert("무료 크레딧을 모두 사용했습니다. BASIC 플랜으로 업그레이드해 무제한 생성 기능을 이용해 보세요.");
             router.push("/");
             return;
@@ -62,7 +65,11 @@ function GenerateContent() {
         setIsGenerating(true);
 
         try {
-            const existingAiContent = segments.filter((segment) => segment.type === "ai").map((segment) => segment.content).join("\n\n");
+            const previousContent = segments
+                .filter((segment) => segment.type === "ai")
+                .map((segment) => segment.content)
+                .join("\n\n");
+
             const response = await fetch("/api/generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -70,7 +77,7 @@ function GenerateContent() {
                     prompt: trimmedPrompt,
                     context: {
                         ...currentContext,
-                        previousContent: existingAiContent,
+                        previousContent,
                     },
                 }),
             });
@@ -102,9 +109,13 @@ function GenerateContent() {
                 setSegments((prev) => prev.map((segment) => (segment.id === aiSegmentId ? { ...segment, content: aiContent } : segment)));
             }
 
-            const creditResponse = await fetch("/api/decrement-credits", { method: "POST" });
-            if (!creditResponse.ok && creditResponse.status !== 401) {
-                console.warn("Failed to decrement credits after generation.");
+            if (!user) {
+                setGuestCredits(decrementGuestCredits());
+            } else {
+                const creditResponse = await fetch("/api/decrement-credits", { method: "POST" });
+                if (!creditResponse.ok && creditResponse.status !== 401) {
+                    console.warn("Failed to decrement credits after generation.");
+                }
             }
         } catch (error: unknown) {
             console.error("Generation failed", error);
@@ -115,6 +126,10 @@ function GenerateContent() {
             setIsGenerating(false);
         }
     };
+
+    useEffect(() => {
+        setGuestCredits(getGuestCredits());
+    }, []);
 
     useEffect(() => {
         if (!novelId) {
@@ -152,6 +167,7 @@ function GenerateContent() {
         if (!currentContext) {
             return;
         }
+
         await generateRef.current(promptText, currentContext);
     };
 
@@ -162,6 +178,12 @@ function GenerateContent() {
             </div>
 
             <div className="relative flex h-full flex-1 flex-col">
+                {!user ? (
+                    <div className="border-b border-white/10 bg-primary/10 px-4 py-2 text-center text-sm text-primary">
+                        비회원 체험 중입니다. 무료 생성 {guestCredits}회가 남아 있습니다.
+                    </div>
+                ) : null}
+
                 <NovelOutput segments={segments} isGenerating={isGenerating} />
 
                 <div className="border-t border-white/10 bg-black/80 p-4 backdrop-blur-md">
@@ -176,7 +198,7 @@ function GenerateContent() {
                                     }
                                 }}
                                 placeholder="다음 장면에 반영할 내용을 입력해 주세요."
-                                className="h-14 rounded-xl bg-white/10 pl-4 pr-12 text-lg border-white/10 focus:bg-white/15"
+                                className="h-14 rounded-xl border-white/10 bg-white/10 pl-4 pr-12 text-lg focus:bg-white/15"
                                 disabled={isGenerating}
                             />
                             <Button
