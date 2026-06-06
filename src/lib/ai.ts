@@ -5,66 +5,67 @@ export interface StoryContext {
     genre: string;
     characters: string[];
     plot: string;
+    tone?: string;
     previousContent?: string;
 }
 
-/**
- * Generate a story using OpenAI's streaming chat completion API.
- * @param prompt The user prompt describing the next part of the story.
- * @param context Additional context such as genre, characters, and plot.
- * @returns A ReadableStream of Uint8Array containing the generated text.
- */
-export async function generateStory(
-    prompt: string,
-    context: StoryContext
-): Promise<ReadableStream<Uint8Array>> {
-    // Initialize OpenAI client with Groq API key and base URL.
-    const openai = new OpenAI({
-        apiKey: process.env.GROQ_API_KEY!,
+function getOpenAIClient() {
+    const apiKey = process.env.GROQ_API_KEY;
+
+    if (!apiKey) {
+        throw new Error("GROQ_API_KEY is not configured.");
+    }
+
+    return new OpenAI({
+        apiKey,
         baseURL: "https://api.groq.com/openai/v1",
     });
+}
 
-    // Construct a system prompt that provides the story context.
-    const systemPrompt = `You are an AI novelist. Write the next part of a story in a vivid, engaging style.
-CRITICAL INSTRUCTION: The output must be 100% in Korean. Do not use any English, Chinese, or other foreign characters. Even if the context contains other languages, translate and write the story in Korean.
-Title: ${context.title || "Untitled"}
-Genre: ${context.genre}
-Characters: ${context.characters.join(", ")}
-Plot: ${context.plot}
-${context.previousContent ? `Previous content: ${context.previousContent}` : ""}`;
+export async function generateStory(prompt: string, context: StoryContext): Promise<ReadableStream<Uint8Array>> {
+    if (!prompt.trim()) {
+        throw new Error("Prompt is required.");
+    }
 
-    // Create a streaming chat completion request.
+    const openai = getOpenAIClient();
+    const systemPrompt = [
+        "당신은 한국어 장편 소설을 쓰는 작가입니다.",
+        "반드시 자연스러운 한국어로만 답하고, 장면 전환과 감정 묘사를 풍부하게 써 주세요.",
+        `제목: ${context.title || "제목 미정"}`,
+        `장르: ${context.genre}`,
+        `등장인물: ${context.characters.join(", ")}`,
+        `줄거리: ${context.plot}`,
+        context.tone ? `문체: ${context.tone}` : null,
+        context.previousContent ? `이전 내용:\n${context.previousContent}` : null,
+    ]
+        .filter(Boolean)
+        .join("\n");
+
     const response = await openai.chat.completions.create({
-        model: "llama-3.3-70b-versatile", // Using Llama 3.3 70B on Groq for high quality and speed
+        model: "llama-3.3-70b-versatile",
         messages: [
             { role: "system", content: systemPrompt },
-            { role: "user", content: `${prompt}\n\n(Write ONLY in Korean)` },
+            { role: "user", content: `${prompt.trim()}\n\n반드시 한국어 서사문으로만 작성해 주세요.` },
         ],
+        temperature: 0.9,
         stream: true,
     });
 
     const encoder = new TextEncoder();
 
-    // Convert the async iterator from OpenAI into a ReadableStream.
-    const stream = new ReadableStream({
+    return new ReadableStream({
         async start(controller) {
             try {
                 for await (const chunk of response) {
-                    const content = chunk.choices[0].delta?.content;
+                    const content = chunk.choices[0]?.delta?.content;
                     if (content) {
-                        // Filter out English (A-Za-z) and Chinese (\u4e00-\u9fff) characters
-                        const filteredContent = content.replace(/[a-zA-Z\u4e00-\u9fff]+/g, "");
-                        if (filteredContent) {
-                            controller.enqueue(encoder.encode(filteredContent));
-                        }
+                        controller.enqueue(encoder.encode(content));
                     }
                 }
                 controller.close();
-            } catch (err) {
-                controller.error(err);
+            } catch (error) {
+                controller.error(error);
             }
         },
     });
-
-    return stream;
 }

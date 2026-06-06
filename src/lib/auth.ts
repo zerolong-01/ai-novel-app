@@ -37,7 +37,7 @@ export function getCurrentUser(): User | null {
     try {
         const stored = localStorage.getItem(SESSION_KEY);
         return stored ? JSON.parse(stored) : null;
-    } catch (e) {
+    } catch {
         return null;
     }
 }

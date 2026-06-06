@@ -17,17 +17,17 @@ export function CharacterFields({ characters, onChange }: CharacterFieldsProps) 
     };
 
     const updateCharacter = (index: number, value: string) => {
-        const newChars = [...characters];
-        newChars[index] = value;
-        onChange(newChars);
+        const nextCharacters = [...characters];
+        nextCharacters[index] = value;
+        onChange(nextCharacters);
     };
 
     return (
         <div className="space-y-3">
-            {characters.map((char, index) => (
-                <div key={index} className="flex gap-2">
+            {characters.map((character, index) => (
+                <div key={`${index}-${character}`} className="flex gap-2">
                     <Input
-                        value={char}
+                        value={character}
                         onChange={(e) => updateCharacter(index, e.target.value)}
                         placeholder={`등장인물 ${index + 1}`}
                         className="bg-white/5"
@@ -52,7 +52,8 @@ export function CharacterFields({ characters, onChange }: CharacterFieldsProps) 
                 onClick={addCharacter}
                 className="w-full border-dashed border-white/20 hover:border-white/40"
             >
-                <Plus className="w-4 h-4 mr-2" /> 등장인물 추가
+                <Plus className="mr-2 h-4 w-4" />
+                등장인물 추가
             </Button>
         </div>
     );

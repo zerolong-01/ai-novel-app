@@ -2,17 +2,20 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { User } from "@supabase/supabase-js";
+import { AuthError, Session, User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { Profile } from "@/lib/types";
+
+type AuthResult = { success: boolean; error: AuthError | null };
+type SignupResult = { success: boolean; error: AuthError | null; data?: { session: Session | null } };
 
 interface AuthContextType {
     user: User | null;
     profile: Profile | null;
     isLoading: boolean;
     loginWithGoogle: () => Promise<void>;
-    login: (email: string, password: string) => Promise<{ success: boolean; error: any }>;
-    signup: (name: string, email: string, password: string) => Promise<{ success: boolean; error: any; data?: any }>;
+    login: (email: string, password: string) => Promise<AuthResult>;
+    signup: (name: string, email: string, password: string) => Promise<SignupResult>;
     logout: () => Promise<void>;
 }
 
@@ -26,41 +29,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
 
     useEffect(() => {
-        const fetchProfile = async (userId: string) => {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single();
+        const fetchProfile = async (userId: string, email?: string | null) => {
+            const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
 
             if (data) {
                 setProfile(data as Profile);
-            } else if (error && error.code === 'PGRST116') {
-                // Profile doesn't exist, create one
-                const newProfile: Profile = {
-                    id: userId,
-                    email: user?.email || "",
-                    credits: 3,
-                    subscription_tier: 'FREE',
-                    subscription_status: 'active'
-                };
-                // Note: In a real app, this should be done via a trigger on auth.users creation
-                // But for client-side init (if no trigger), we can try to insert.
-                // Better approach: Use a Postgres Trigger.
-                // For now, we'll just set local state as fallback or handle null profile in UI.
-                setProfile(newProfile);
+                return;
             }
+
+            if (error) {
+                console.error("Failed to fetch profile:", error);
+            }
+
+            setProfile({
+                id: userId,
+                email: email || "",
+                credits: 3,
+                subscription_tier: "FREE",
+                subscription_status: "active",
+            });
         };
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        const bootstrap = async () => {
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
+
             setUser(session?.user ?? null);
+
             if (session?.user) {
-                await fetchProfile(session.user.id);
+                await fetchProfile(session.user.id, session.user.email);
+            }
+
+            setIsLoading(false);
+        };
+
+        void bootstrap();
+
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange(async (event, session) => {
+            setUser(session?.user ?? null);
+
+            if (session?.user) {
+                await fetchProfile(session.user.id, session.user.email);
             } else {
                 setProfile(null);
             }
+
             setIsLoading(false);
-            if (event === 'SIGNED_IN') {
+
+            if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
                 router.refresh();
             }
         });
@@ -72,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const loginWithGoogle = async () => {
         await supabase.auth.signInWithOAuth({
-            provider: 'google',
+            provider: "google",
             options: {
                 redirectTo: `${window.location.origin}/auth/callback`,
             },
@@ -80,17 +99,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const login = async (email: string, password: string) => {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
+
         if (error) {
             console.error("Login error:", error);
         }
+
         return { success: !error, error };
     };
 
-    const signup = async (name: string, email: string, password: string) => {
+    const signup = async (name: string, email: string, password: string): Promise<SignupResult> => {
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
@@ -101,10 +122,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 },
             },
         });
+
         if (error) {
             console.error("Signup error:", error);
         }
-        return { success: !error, error, data };
+
+        return { success: !error, error, data: { session: data.session } };
     };
 
     const logout = async () => {
