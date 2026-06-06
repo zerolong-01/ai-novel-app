@@ -8,6 +8,45 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import type { AuthError } from "@supabase/supabase-js";
+
+function getSignupErrorMessage(error: AuthError | Error | null) {
+    if (!error) {
+        return "회원가입 중 알 수 없는 오류가 발생했습니다.";
+    }
+
+    const normalizedMessage = error.message.toLowerCase();
+
+    if (normalizedMessage.includes("failed to fetch")) {
+        return "인증 서버에 연결하지 못했습니다. 인터넷 연결 상태와 Supabase 환경 변수 설정을 확인한 뒤 다시 시도해 주세요.";
+    }
+
+    if (normalizedMessage.includes("user already registered")) {
+        return "이미 가입된 이메일입니다. 로그인하거나 비밀번호 재설정을 진행해 주세요.";
+    }
+
+    if (normalizedMessage.includes("password")) {
+        return "비밀번호 조건을 만족하지 못했습니다. 더 길고 복잡한 비밀번호로 다시 시도해 주세요.";
+    }
+
+    if (normalizedMessage.includes("invalid email")) {
+        return "이메일 형식이 올바르지 않습니다.";
+    }
+
+    if (normalizedMessage.includes("email address") && normalizedMessage.includes("invalid")) {
+        return "이메일 주소를 다시 확인해 주세요.";
+    }
+
+    if (normalizedMessage.includes("rate limit")) {
+        return "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.";
+    }
+
+    if (normalizedMessage.includes("database")) {
+        return "회원 정보를 저장하는 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+    }
+
+    return error.message || "회원가입 중 오류가 발생했습니다.";
+}
 
 export default function SignupPage() {
     const [name, setName] = useState("");
@@ -23,27 +62,38 @@ export default function SignupPage() {
         e.preventDefault();
         setError("");
         setSuccessMessage("");
+
+        const trimmedName = name.trim();
+        const trimmedEmail = email.trim();
+
+        if (!trimmedName) {
+            setError("이름을 입력해 주세요.");
+            return;
+        }
+
+        if (password.length < 8) {
+            setError("비밀번호는 최소 8자 이상이어야 합니다.");
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
-            const { success, error, data } = await signup(name, email, password);
+            const { success, error, data } = await signup(trimmedName, trimmedEmail, password);
+
             if (success) {
                 if (data?.session) {
                     router.push("/");
                 } else {
-                    setSuccessMessage("가입이 완료되었습니다. 메일함에서 인증 링크를 눌러 계정을 활성화해 주세요.");
+                    setSuccessMessage("가입이 완료되었습니다. 이메일로 받은 인증 링크를 눌러 계정을 활성화해 주세요.");
                 }
                 return;
             }
 
-            if (error?.message === "User already registered") {
-                setError("이미 가입된 이메일입니다.");
-            } else {
-                setError(error?.message || "회원가입 중 오류가 발생했습니다.");
-            }
+            setError(getSignupErrorMessage(error));
         } catch (err) {
             console.error("Signup exception:", err);
-            setError("회원가입 중 오류가 발생했습니다.");
+            setError(getSignupErrorMessage(err instanceof Error ? err : new Error("회원가입 요청 처리에 실패했습니다.")));
         } finally {
             setIsSubmitting(false);
         }
@@ -84,12 +134,14 @@ export default function SignupPage() {
                             <label className="text-sm font-medium text-gray-200">비밀번호</label>
                             <Input
                                 type="password"
-                                placeholder="안전한 비밀번호를 입력하세요"
+                                placeholder="8자 이상 비밀번호를 입력하세요"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="border-white/10 bg-white/5"
                                 required
+                                minLength={8}
                             />
+                            <p className="text-xs text-muted-foreground">최소 8자 이상으로 설정해 주세요.</p>
                         </div>
                         {error ? <p className="text-center text-sm text-red-500">{error}</p> : null}
                         {successMessage ? <p className="text-center text-sm text-emerald-400">{successMessage}</p> : null}
