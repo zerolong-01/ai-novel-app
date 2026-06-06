@@ -14,6 +14,7 @@ export default function SignupPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
+    const [successMessage, setSuccessMessage] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { signup } = useAuth();
     const router = useRouter();
@@ -21,6 +22,7 @@ export default function SignupPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        setSuccessMessage("");
         setIsSubmitting(true);
 
         try {
@@ -29,16 +31,15 @@ export default function SignupPage() {
                 if (data?.session) {
                     router.push("/");
                 } else {
-                    // Session is null, meaning email confirmation is required
-                    setError("가입이 완료되었습니다. 이메일을 확인하여 계정을 인증해주세요.");
-                    // Optional: Clear form or redirect to a specific verification page
+                    setSuccessMessage("가입이 완료되었습니다. 메일함에서 인증 링크를 눌러 계정을 활성화해 주세요.");
                 }
+                return;
+            }
+
+            if (error?.message === "User already registered") {
+                setError("이미 가입된 이메일입니다.");
             } else {
-                if (error?.message === "User already registered") {
-                    setError("이미 존재하는 이메일입니다.");
-                } else {
-                    setError(error?.message || "회원가입 중 오류가 발생했습니다.");
-                }
+                setError(error?.message || "회원가입 중 오류가 발생했습니다.");
             }
         } catch (err) {
             console.error("Signup exception:", err);
@@ -49,13 +50,11 @@ export default function SignupPage() {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-4">
-            <Card className="w-full max-w-md bg-black/50 backdrop-blur-xl border-white/10">
+        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
+            <Card className="w-full max-w-md border-white/10 bg-black/50 backdrop-blur-xl">
                 <CardHeader>
-                    <CardTitle className="text-2xl font-bold text-center">회원가입</CardTitle>
-                    <CardDescription className="text-center">
-                        새로운 계정을 만들고 나만의 이야기를 시작하세요.
-                    </CardDescription>
+                    <CardTitle className="text-center text-2xl font-bold">회원가입</CardTitle>
+                    <CardDescription className="text-center">계정을 만들고 나만의 장편 소설을 시작해 보세요.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -63,10 +62,10 @@ export default function SignupPage() {
                             <label className="text-sm font-medium text-gray-200">이름</label>
                             <Input
                                 type="text"
-                                placeholder="홍길동"
+                                placeholder="표시될 이름"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                className="bg-white/5 border-white/10"
+                                className="border-white/10 bg-white/5"
                                 required
                             />
                         </div>
@@ -77,7 +76,7 @@ export default function SignupPage() {
                                 placeholder="name@example.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="bg-white/5 border-white/10"
+                                className="border-white/10 bg-white/5"
                                 required
                             />
                         </div>
@@ -85,16 +84,15 @@ export default function SignupPage() {
                             <label className="text-sm font-medium text-gray-200">비밀번호</label>
                             <Input
                                 type="password"
-                                placeholder="••••••••"
+                                placeholder="안전한 비밀번호를 입력하세요"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="bg-white/5 border-white/10"
+                                className="border-white/10 bg-white/5"
                                 required
                             />
                         </div>
-                        {error && (
-                            <p className="text-sm text-red-500 text-center">{error}</p>
-                        )}
+                        {error ? <p className="text-center text-sm text-red-500">{error}</p> : null}
+                        {successMessage ? <p className="text-center text-sm text-emerald-400">{successMessage}</p> : null}
                         <Button type="submit" className="w-full" disabled={isSubmitting}>
                             {isSubmitting ? (
                                 <>
@@ -109,7 +107,7 @@ export default function SignupPage() {
                 </CardContent>
                 <CardFooter className="flex justify-center">
                     <p className="text-sm text-muted-foreground">
-                        이미 계정이 있으신가요?{" "}
+                        이미 계정이 있나요?{" "}
                         <Link href="/login" className="text-primary hover:underline">
                             로그인
                         </Link>

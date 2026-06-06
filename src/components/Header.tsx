@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, Github, LogOut, User } from "lucide-react";
+import { BookOpen, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/AuthProvider";
 import {
@@ -23,14 +23,15 @@ export function Header() {
                     <BookOpen className="w-6 h-6 text-primary" />
                     <span>NovelStudio</span>
                 </Link>
+
                 <nav className="flex items-center gap-4">
                     {user ? (
                         <>
-                            <Link href="/history" className="text-sm font-medium text-muted-foreground hover:text-white transition-colors">
-                                보관함
+                            <Link href="/history" className="text-sm font-medium text-muted-foreground transition-colors hover:text-white">
+                                내 작품
                             </Link>
-                            <Link href="/generate" className="text-sm font-medium text-muted-foreground hover:text-white transition-colors">
-                                만들기
+                            <Link href="/" className="text-sm font-medium text-muted-foreground transition-colors hover:text-white">
+                                새 소설
                             </Link>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -43,14 +44,14 @@ export function Header() {
                                 <DropdownMenuContent className="w-56" align="end" forceMount>
                                     <DropdownMenuLabel className="font-normal">
                                         <div className="flex flex-col space-y-1">
-                                            <p className="text-sm font-medium leading-none">{profile?.full_name || user.email?.split('@')[0]}</p>
-                                            <p className="text-xs leading-none text-muted-foreground">
-                                                {user.email}
+                                            <p className="text-sm font-medium leading-none">
+                                                {profile?.full_name || user.email?.split("@")[0]}
                                             </p>
+                                            <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                                         </div>
                                     </DropdownMenuLabel>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={logout} className="text-red-500 cursor-pointer">
+                                    <DropdownMenuItem onClick={logout} className="cursor-pointer text-red-500">
                                         <LogOut className="mr-2 h-4 w-4" />
                                         <span>로그아웃</span>
                                     </DropdownMenuItem>

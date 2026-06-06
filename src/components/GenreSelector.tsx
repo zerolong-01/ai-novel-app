@@ -1,9 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const GENRES = [
-    "판타지", "SF", "로맨스", "미스터리", "공포", "사이버펑크", "무협"
-];
+const GENRES = ["판타지", "SF", "로맨스", "미스터리", "공포", "사이버펑크", "무협"];
 
 interface GenreSelectorProps {
     selected: string;

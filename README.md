@@ -1,36 +1,31 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Novel App
 
-## Getting Started
+AI를 활용해 한국어 웹소설 초고를 만들고 이어서 집필할 수 있는 Next.js 앱입니다. 사용자는 제목, 장르, 등장인물, 줄거리를 입력한 뒤 장면 단위로 생성하고, 브라우저에 저장된 작업 이력을 다시 불러와 계속 작성할 수 있습니다.
 
-First, run the development server:
+## 주요 기능
+
+- 한국어 소설 생성 스트리밍
+- 로컬 저장 기반 작품 이력 관리
+- Supabase 인증 연동
+- Stripe 구독 업그레이드 흐름
+
+## 실행 방법
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+브라우저에서 `http://localhost:3000`을 열어 확인합니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 필요한 환경 변수
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `GROQ_API_KEY`
+- `STRIPE_SECRET_KEY`
 
-## Learn More
+## 개선 메모
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- 작품 데이터는 현재 브라우저 `localStorage`에 저장됩니다.
+- 장기적으로는 Supabase DB에 작품 본문과 챕터를 저장하도록 확장하는 편이 좋습니다.
