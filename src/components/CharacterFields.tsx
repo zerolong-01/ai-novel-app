@@ -25,7 +25,7 @@ export function CharacterFields({ characters, onChange }: CharacterFieldsProps) 
     return (
         <div className="space-y-3">
             {characters.map((character, index) => (
-                <div key={`${index}-${character}`} className="flex gap-2">
+                <div key={index} className="flex gap-2">
                     <Input
                         value={character}
                         onChange={(e) => updateCharacter(index, e.target.value)}
